@@ -6,7 +6,7 @@ import { messagesManager } from "../DAO/mongodb/managers/messagesManager.js";
 
 const router = Router();
 
-router.post("/signup", async (req, res) => {
+router.post("/signup", passport.authenticate("signup"), async (req, res) => {
     const { first_name, last_name, email, password, username } = req.body;
     
     if (!first_name || !last_name || !email || !password || !username) {
@@ -14,30 +14,35 @@ router.post("/signup", async (req, res) => {
     }
     try {
         const hashedPassword = await hashData(password);
-        const createdUser = await usersManager.createOne(req.body);
+        const existingUser = await usersManager.findByEmail(email);
+        const redirectUrl = `/login`;
+        if (existingUser) {
+            return res.redirect(redirectUrl);
+        }
+        const createdUser = await usersManager.createOne({...req.body, password:hashedPassword});
         const userId = createdUser.id; 
-        const redirectUrl = `/profile/${userId}`;
+        
         res.redirect(redirectUrl);
     } catch (error) {
     res.status(500).json({ error });
     }
 });
 
-router.post("/login", async (req, res) => {
+router.post("/login", passport.authenticate("login"),  async (req, res) => {
 const { email, password } = req.body;
 if (!email || !password) {
-    return res.status(400).json({ message: "Some data is missing" });
+    return done(null, false, {message: "Some data is missing"});
 }
 try {
     const user = await usersManager.findByEmail(email);
     console.log("user", user);
     if (!user) {
-        return res.redirect("/signup");
+        return done(null, false, {message: "Username is not valid"});
     }
-    const isPasswordValid = password === user.password;
+    const isPasswordValid = await compareData(password, user.password);
     console.log("password", isPasswordValid);
     if (!isPasswordValid) {
-        return res.status(401).json({ message: "Password is not valid" });
+        return done(null, false, {message: "Password is not valid"});
     }
     const userId = user.id;
     console.log("userId", userId);
@@ -50,18 +55,43 @@ try {
 
     res.redirect(`/profile/${userId}`);
     */
-    const {first_name, last_name} = user; 
-    const token = generateToken({first_name, last_name, email});
-    console.log("Token", token);
-    res.json({message: "Token", token});
+    const {first_name, last_name, role} = user; 
+    const token = generateToken({first_name, last_name, email, role});
+    //res.json({message: "Token", token});
+    
+    res
+        .status(200)
+        .cookie("token", token, {maxAge:60000, httpOnly: true})
+        .redirect("/products");
 } catch (error) {
-    res.status(500).json({ error });
+    done(error);;
 }
 });
 
+router.get(
+    "/current", passport.authenticate("jwt", {session: false}), async(req,res) =>{
+        const {name} = req.body;
+        console.log("Role de usuario: ", req.user.role);
+        if (req.user.role === "user"){
+            return res.status(403).json({message: "Hi! you have an user role"});
+        }
+        if (req.user.role === "admin"){
+            return res.status(403).json({message: "Hi! you have an admin role"});
+        }
+        if (req.user.role === "premium"){
+            return res.status(403).json({message: "Hi! you have a premium role"});
+        }
+        if (!name){
+            return res.status(400).json({message: "Name is missing"});
+        }
+    }
+);
+
+
+/*
 // SIGNUP - LOGIN - PASSPORT LOCAL
 
-    /*
+    
     router.post(
         "/signup",
         passport.authenticate("signup", {
@@ -77,7 +107,8 @@ try {
         failureRedirect: "/error",
         })
     );
-    */
+    
+*/
 
     // SIGNUP - LOGIN - PASSPORT GITHUB
     
@@ -87,7 +118,7 @@ try {
     );
     
     router.get("/callback", passport.authenticate("github"), (req, res) => {
-        res.send("Ingreso con Github exitoso");
+        res.redirect("/products");
     });
 
     // SIGNUP - LOGIN - PASSPORT GOOGLE
@@ -101,7 +132,7 @@ try {
         '/auth/google/callback',
         passport.authenticate( 'google', { failureRedirect: '/error'}),
         (req, res)=>{
-            res.redirect("/profile");
+            res.redirect("/products");
         }
         );
 

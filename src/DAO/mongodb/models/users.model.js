@@ -22,6 +22,22 @@ const usersSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    age:{
+        type: Number,
+        required: false,
+        default: 18
+    },
+    cart:{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "carts",
+        default: null,
+        required: false,
+    },    
+    role: {
+        type: String,
+        enum: ["admin", "premium", "user"],
+        default: "user" 
+    },
     isGithub: {
         type: Boolean,
         default: false,
@@ -30,21 +46,6 @@ const usersSchema = new mongoose.Schema({
         type: Boolean,
         default: false,
     },
-    age:{
-        type: Number,
-        required: false,
-        default: 18
-    },
-    cart:{
-        type: Number,
-        required: false,
-        default: 0
-    },
-    role: {
-        type: String,
-        enum: ["admin", "premium", "user"],
-        default: "user" 
-    }
 });
 
 export const usersModel = mongoose.model("Users", usersSchema);

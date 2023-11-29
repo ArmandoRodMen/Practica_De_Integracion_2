@@ -2,6 +2,7 @@ import { Router } from "express";
 import { usersManager } from "../DAO/mongodb/managers/usersManager.js";
 import {jwtValidation} from "../middlewares/jwt.middleware.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
+import passport from "passport";
 
 const router = Router();
 
@@ -14,11 +15,13 @@ router.get("/", async (req, res)=>{
     }
 });
 
-router.get("/:idUser", jwtValidation, authMiddleware,async (req, res) =>{
-    const {idUser} = req.params;
+router.get("/:idUser", 
+    passport.authenticate('jwt', { session: false }), 
+    authMiddleware(["user"]),
+    async (req, res) =>{
+        const {idUser} = req.params;
     try{
         const user = await usersManager.findById(idUser);
-        console.log("user", req.user);
         res.status(200).json({message: "User", user});
     }catch(error){
         res.status(500).json({error: error.message});

@@ -4,7 +4,7 @@ import { Strategy as LocalStrategy } from "passport-local";
 import { Strategy as GithubStrategy } from "passport-github2";
 import { Strategy as GoogleStrategy } from "passport-google-oauth2";
 import { hashData, compareData } from "./utils.js";
-import { usersModel } from "./DAO/mongodb/models/users.model.js";
+import { ExtractJwt, Strategy as JWTStrategy} from "passport-jwt";
 
 //local
 passport.use(
@@ -37,7 +37,6 @@ passport.use("login", new LocalStrategy({usernameField: "email"},async(email, pa
         if (!user) {
             return done(null, false);       
         }
-        //const isPasswordValid = password === user.password;
         const isPasswordValid = await compareData(password, user.password);
         if (!isPasswordValid) {
             return done(null, false);
@@ -49,8 +48,9 @@ passport.use("login", new LocalStrategy({usernameField: "email"},async(email, pa
             ? { email, first_name: user.first_name, isAdmin: true, isUser: false, userId}
             : { email, first_name: user.first_name, isAdmin: false, isUser: true, userId };
         req.session.user = sessionInfo;
-        res.redirect(`/profile/${userId}`);
         */
+        
+        //res.redirect(`/profile/${userId}`);
         done(null,user);
     } catch (error) {
         done(error);
@@ -129,6 +129,19 @@ passport.use(
     }
 ));
 
+const current = (req) =>{
+    return req.cookies.token;
+};
+
+//JWT
+passport.use("jwt", 
+    new JWTStrategy({
+        //jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+        jwtFromRequest: ExtractJwt.fromExtractors([current]),
+        secretOrKey: "secretJWT",
+}, async function (jwt_payload, done) {
+        done(null,jwt_payload);
+}));
 
 passport.serializeUser((user, done) =>{
     done(null, user._id);
