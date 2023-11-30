@@ -8,10 +8,11 @@ export const authMiddleware = (req, res, next) =>{
     }
 };*/
 
-export const authMiddleware = (role) =>{
-    return(req, res, next)=>{
-        if(req.user.role !== role){
-            return res.status(403).json("Not authorized");
+export const authMiddleware = (role) => {
+    return (req, res, next) => {
+        if (!req.user || req.user.role !== role) {
+            console.error("Unauthorized access detected:", req.user);
+            return res.status(403).json({ error: "Not authorized" });
         }
         next();
     };
